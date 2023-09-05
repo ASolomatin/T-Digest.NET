@@ -1,44 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using TDigestNet;
 
-namespace TDigestNet.CMD {
-    class Program {
-        static void Main(string[] args) {
-            Random r = new Random();
+Random r = new Random();
 
-            TDigest digestA = new TDigest();
-            TDigest digestAll = new TDigest();
-            List<double> actual = new List<double>();
-            for (int i = 0; i < 10000; i++) {
-                var n = (r.Next() % 50) + (r.Next() % 50);
-                digestA.Add(n);
-                //digestAll.Add(n);
-                actual.Add(n);
-            }
+TDigest digest = new TDigest();
 
-            TDigest digestB = new TDigest();
-            List<double> actualB = new List<double>();
-            for (int i = 0; i < 10000; i++) {
-                var n = (r.Next() % 100) + (r.Next() % 100);
-                digestB.Add(n);
-                digestAll.Add(n);
-                actual.Add(n);
-            }
-
-            actual.Sort();
-
-            var merged = TDigestNet.Merge(digestA, digestB);
-            //Debug.Assert.AreEqual(actual.Count, merged.Count);
-
-            //var avgError = GetAvgError(actual, merged);
-            //Assert.IsTrue(avgError < .5);
-
-            var trueAvg = actual.Average();
-            var deltaAvg = Math.Abs(digestAll.Average - merged.Average);
-        }
-    }
+for (int i = 0; i < 10000; i++)
+{
+    var n = (r.Next() % 50) + (r.Next() % 50);
+    digest.Add(n);
 }
+
+Console.WriteLine($"Average: {digest.Average}");
+Console.WriteLine($"Percentile 10: {digest.Quantile(10 / 100d)}");
+Console.WriteLine($"Percentile 50: {digest.Quantile(50 / 100d)}");
+Console.WriteLine($"Percentile 80: {digest.Quantile(80 / 100d)}");
+Console.WriteLine($"Percentile 99: {digest.Quantile(99 / 100d)}");
