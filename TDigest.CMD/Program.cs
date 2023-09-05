@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StatsLib.CMD {
+namespace TDigest.CMD {
     class Program {
         static void Main(string[] args) {
             Random r = new Random();

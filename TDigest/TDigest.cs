@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 
-namespace StatsLib {
+namespace TDigest {
 
     public class TDigest {
         private C5.TreeDictionary<double, Centroid> _centroids;
