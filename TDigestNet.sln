@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet", "TDigestNet\TDigestNet.csproj", "{DBF53C2D-F639-4E98-8618-EED40319E0D5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.Tests", "TDigestNet.Tests\TDigestNet.Tests.csproj", "{9CD49D20-6083-46BB-9F89-21CFE81F6A60}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.CMD", "TDigestNet.CMD\TDigestNet.CMD.csproj", "{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DBF53C2D-F639-4E98-8618-EED40319E0D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBF53C2D-F639-4E98-8618-EED40319E0D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBF53C2D-F639-4E98-8618-EED40319E0D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBF53C2D-F639-4E98-8618-EED40319E0D5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
