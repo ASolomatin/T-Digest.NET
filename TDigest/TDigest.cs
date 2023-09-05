@@ -401,16 +401,6 @@ namespace TDigest {
         }
     }
 
-    public class DistributionPoint {
-        public double Value { get; private set; }
-        public double Count { get; private set; }
-
-        public DistributionPoint(double value, double count) {
-            Value = value;
-            Count = count;
-        }
-    }
-
     internal class Centroid {
         public double Mean { get; private set; }
         public double Count { get; private set; }
