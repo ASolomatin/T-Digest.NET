@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.1;net6.0;net7.0;net461;net481</TargetFrameworks>
+    <TargetFrameworks>netstandard2.1;net6.0;net461</TargetFrameworks>
     <LangVersion>10.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -14,7 +14,7 @@
     <AssemblyCopyright>Copyright ©  2019</AssemblyCopyright>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net461' Or '$(TargetFramework)' == 'net481'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
     <Using Remove="System.Net.Http" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
