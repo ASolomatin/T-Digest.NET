@@ -1,14 +1,13 @@
 ﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
+using NUnit.Framework;
 
 namespace StatsLib.Tests {
-    [TestClass]
     public class Tests {
 
-        [TestMethod]
+        [Test]
         public void TestFixForNegativeQuantileBug()
         {
             var r = new Random();
@@ -24,7 +23,7 @@ namespace StatsLib.Tests {
             }
         }
 
-        [TestMethod]
+        [Test]
         public void TestUniformDistribution() {
             Random r = new Random();
 
@@ -47,7 +46,7 @@ namespace StatsLib.Tests {
             Assert.IsTrue(avgError < .0005);
         }
 
-        [TestMethod]
+        [Test]
         public void TestConstantValue() {
             Random r = new Random();
 
@@ -66,7 +65,7 @@ namespace StatsLib.Tests {
             Assert.IsTrue(avgError == 0);
         }
 
-        [TestMethod]
+        [Test]
         public void TestSequential() {
             Random r = new Random();
             TDigest digest = new TDigest(.01);
@@ -84,7 +83,7 @@ namespace StatsLib.Tests {
             Assert.IsTrue(avgError < 5);
         }
 
-        [TestMethod]
+        [Test]
         public void TestNormalDistribution() {
             Random r = new Random();
             TDigest digest = new TDigest();
@@ -105,7 +104,7 @@ namespace StatsLib.Tests {
             Assert.IsTrue(avgError < .5);
         }
 
-        [TestMethod]
+        [Test]
         public void TestEdgeCases() {
             // No elements
             TDigest digest = new TDigest();
@@ -133,7 +132,7 @@ namespace StatsLib.Tests {
             Assert.AreEqual(100, v);
         }
 
-        [TestMethod]
+        [Test]
         public void TestMerge() {
             Random r = new Random();
 
@@ -169,7 +168,7 @@ namespace StatsLib.Tests {
             Assert.IsTrue(deltaAvg < .01);
         }
 
-        [TestMethod]
+        [Test]
         public void TestSerialization() {
             Random r = new Random();
 
