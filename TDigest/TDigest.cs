@@ -34,7 +34,7 @@ namespace TDigest {
         /// <summary>
         /// Gets the Accuracy setting as specified in the constructor. 
         /// Smaller numbers result in greater accuracy at the expense of 
-        /// poorer performance and greater memory consumpion
+        /// poorer performance and greater memory consumption
         /// Default is .02
         /// </summary>
         public double Accuracy { get; private set; }
@@ -208,7 +208,7 @@ namespace TDigest {
         /// <summary>
         /// Estimates the specified quantile
         /// </summary>
-        /// <param name="quantile">The quantile to esimtate. Must be between 0 and 1.</param>
+        /// <param name="quantile">The quantile to estimate. Must be between 0 and 1.</param>
         /// <returns>The value for the estimated quantile</returns>
         public double Quantile(double quantile) {
             if (quantile < 0 || quantile > 1) {
