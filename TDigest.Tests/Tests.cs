@@ -178,7 +178,7 @@ namespace TDigest.Tests {
                 digestA.Add(n);
             }
 
-            byte[] s = digestA.Serialize();
+            byte[] s = digestA.Serialize(false);
             TDigest digestB = TDigest.Deserialize(s);
 
             var a = digestA.GetDistribution().ToArray();
