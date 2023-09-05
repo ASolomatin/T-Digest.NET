@@ -179,10 +179,10 @@ namespace TDigest.Tests {
             }
 
             byte[] s = digestA.Serialize();
-            TDigest digestB = new TDigest(s);
+            TDigest digestB = TDigest.Deserialize(s);
 
-            var a = digestA.GetDistribution();
-            var b = digestB.GetDistribution();
+            var a = digestA.GetDistribution().ToArray();
+            var b = digestB.GetDistribution().ToArray();
             for (int i=0; i<a.Length; i++) {
                 var ce = a[i].Count == b[i].Count;
                 var me = a[i].Value == b[i].Value;

@@ -1,421 +1,580 @@
-﻿using C5;
-using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Diagnostics;
+﻿using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
+using TDigest.Internal;
 
-namespace TDigest {
+namespace TDigest;
 
-    public class TDigest {
-        private C5.TreeDictionary<double, Centroid> _centroids;
-        private static Random _rand;
-        private double _count;
-
-        /// <summary>
-        /// Returns the sum of the weights of all objects added to the Digest. 
-        /// Since the default weight for each object is 1, this will be equal to the number
-        /// of objects added to the digest unless custom weights are used.
-        /// </summary>
-        public double Count {
-            get { return _count; } 
-        }
-
-        /// <summary>
-        /// Returns the number of Internal Centroid objects allocated. 
-        /// The number of these objects is directly proportional to the amount of memory used.
-        /// </summary>
-        public int CentroidCount {
-            get { return _centroids.Count; }
-        }
-
-        /// <summary>
-        /// Gets the Accuracy setting as specified in the constructor. 
-        /// Smaller numbers result in greater accuracy at the expense of 
-        /// poorer performance and greater memory consumption
-        /// Default is .02
-        /// </summary>
-        public double Accuracy { get; private set; }
-
-        /// <summary>
-        /// The Compression Constant Setting 
-        /// </summary>
-        public double CompressionConstant { get; private set; }
-
-        /// <summary>
-        /// The Average 
-        /// </summary>
-        public double Average {
-            get { return _count > 0 ? _newAvg : 0; } 
-        }
-
-        /// <summary>
-        /// The Max
-        /// </summary>
-        public double Max { get; private set; }
+public class TDigest
+{
+    private const int SERIALIZATION_HEADER_SIZE = 8 * 5;
+    private const int SERIALIZATION_ITEM_SIZE = 8 * 2;
 
 
-        /// <summary>
-        /// The Min
-        /// </summary>
-        public double Min { get; private set; }
+    private CentroidTree _centroids;
+    private double _average;
 
-        private double _newAvg, _oldAvg;
+    /// <summary>
+    /// Returns the sum of the weights of all objects added to the Digest.
+    /// Since the default weight for each object is 1, this will be equal to the number
+    /// of objects added to the digest unless custom weights are used.
+    /// </summary>
+    public double Count => _centroids.Root?.subTreeWeight ?? 0;
 
-        /// <summary>
-        /// Merge two T-Digests
-        /// </summary>
-        /// <param name="a">The first T-Digest</param>
-        /// <param name="b">The second T-Digest</param>
-        /// <returns>A T-Digest created by merging the specified T-Digests</returns>
-        public static TDigest Merge(TDigest a, TDigest b) {
-            TDigest merged = new TDigest();
-            Centroid[] combined = a._centroids.Values.Concat(b._centroids.Values).ToArray();
-            combined.Shuffle();
-            foreach (var c in combined) {
-                merged.Add(c.Mean, c.Count);
-            }
-            merged._newAvg = ((a._newAvg * a._count) + (b._newAvg * b._count)) / (a.Count + b.Count);
-            merged._oldAvg = ((a._oldAvg * (a.Count - 1)) + (b._oldAvg * (b.Count - 1))) / (a._count + b._count - 2);
+    /// <summary>
+    /// Returns the number of Internal Centroid objects allocated.
+    /// The number of these objects is directly proportional to the amount of memory used.
+    /// </summary>
+    public int CentroidCount => _centroids.Count;
 
-            return merged;
-        }
+    /// <summary>
+    /// Gets the Accuracy setting as specified in the constructor.
+    /// Smaller numbers result in greater accuracy at the expense of
+    /// poorer performance and greater memory consumption
+    /// Default is .02
+    /// </summary>
+    public double Accuracy { get; private set; }
 
-        /// <summary>
-        /// Construct a T-Digest,
-        /// </summary>
-        /// <param name="accuracy">Controls the trade-off between accuracy and memory consumption/performance. 
-        /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
-        /// lower values result in better accuracy and increased performance and memory usage</param>
-        /// <param name="compression">K value</param>
-        public TDigest(double accuracy = 0.02, double compression = 25) {
-            if (accuracy <= 0) throw new ArgumentOutOfRangeException("Accuracy must be greater than 0");
-            if (compression < 15) throw new ArgumentOutOfRangeException("Compression constant must be 15 or greater");
-            
-            _centroids = new TreeDictionary<double, Centroid>();
-            _rand = new Random();
-            _count = 0;
-            Accuracy = accuracy;
-            CompressionConstant = compression;
-        }
+    /// <summary>
+    /// The Compression Constant Setting
+    /// </summary>
+    public double CompressionConstant { get; private set; }
 
-        /// <summary>
-        /// Construct a TDigest from a serialized string of Bytes created by the Serialize() method
-        /// </summary>
-        /// <param name="serialized"></param>
-        public TDigest(byte[] serialized) 
-            : this()
+    /// <summary>
+    /// The Average
+    /// </summary>
+    public double Average => _average;
+
+    /// <summary>
+    /// The Min
+    /// </summary>
+    public double Min { get; private set; }
+
+    /// <summary>
+    /// The Max
+    /// </summary>
+    public double Max { get; private set; }
+
+    /// <summary>
+    /// The expected size in bytes after serialization
+    /// </summary>
+    public int ExpectedSerializedBytesLength => SERIALIZATION_HEADER_SIZE + SERIALIZATION_ITEM_SIZE * _centroids.Count;
+
+    internal CentroidTree InternalTree => _centroids;
+
+    /// <summary>
+    /// Construct a T-Digest,
+    /// </summary>
+    /// <param name="accuracy">Controls the trade-off between accuracy and memory consumption/performance.
+    /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
+    /// lower values result in better accuracy and increased performance and memory usage</param>
+    /// <param name="compression">K value</param>
+    public TDigest(double accuracy = 0.02, double compression = 25)
+        : this(new CentroidTree())
+    {
+        if (accuracy <= 0) throw new ArgumentOutOfRangeException(nameof(accuracy), "Accuracy must be greater than 0");
+        if (compression < 15) throw new ArgumentOutOfRangeException(nameof(compression), "Compression constant must be 15 or greater");
+
+        Accuracy = accuracy;
+        CompressionConstant = compression;
+    }
+
+    private TDigest(TDigest digest)
+    {
+        _centroids = digest._centroids.Clone();
+        _average = digest._average;
+        Accuracy = digest.Accuracy;
+        CompressionConstant = digest.CompressionConstant;
+        Min = digest.Min;
+        Max = digest.Max;
+    }
+
+    private TDigest(CentroidTree centroids) => _centroids = centroids;
+
+    /// <summary>
+    /// Add a new value to the T-Digest. Note that this method is NOT thread safe.
+    /// </summary>
+    /// <param name="value">The value to add</param>
+    /// <param name="weight">The relative weight associated with this value. Default is 1 for all values.</param>
+    public void Add(double value, double weight = 1)
+    {
+        if (weight <= 0)
+            throw new ArgumentOutOfRangeException(nameof(weight), "Weight must be greater than 0");
+
+        if (_centroids.Root is null)
         {
-            if (serialized == null) throw new ArgumentNullException("Serialized parameter cannot be null");
+            _average = value;
+            Min = value;
+            Max = value;
 
-            if ((serialized.Length - 48) % 16 != 0) {
-                throw new ArgumentException("Serialized data is invalid or corrupted");
-            }
-
-            _newAvg = BitConverter.ToDouble(serialized, 0);
-            _oldAvg = BitConverter.ToDouble(serialized, 8);
-            Accuracy = BitConverter.ToDouble(serialized, 16);
-            CompressionConstant = BitConverter.ToDouble(serialized, 24);
-            Min = BitConverter.ToDouble(serialized, 32);
-            Max = BitConverter.ToDouble(serialized, 40);
-
-            var centroids = Enumerable.Range(0, (serialized.Length-48)/16)
-                .Select(i => new {
-                    Mean = BitConverter.ToDouble(serialized, i * 16 + 48),
-                    Count = BitConverter.ToDouble(serialized, i * 16 + 8 + 48)
-                })
-                .Select(d => new Centroid(d.Mean, d.Count));
-
-            var kvPairs = centroids
-                .Select(c => new C5.KeyValuePair<double, Centroid>(c.Mean, c))
-                .ToArray();
-
-            _centroids.AddAll(kvPairs);
-            _count = centroids.Sum(c => c.Count);
+            _centroids.Add(value, weight);
+            return;
+        }
+        else
+        {
+            _average += (value - _average) * weight / (_centroids.Root.subTreeWeight + weight);
+            Max = value > Max ? value : Max;
+            Min = value < Min ? value : Min;
         }
 
-        /// <summary>
-        /// Add a new value to the T-Digest. Note that this method is NOT thread safe. 
-        /// </summary>
-        /// <param name="value">The value to add</param>
-        /// <param name="weight">The relative weight associated with this value. Default is 1 for all values.</param>
-        public void Add(double value, double weight = 1) {
-            if (weight <= 0) throw new ArgumentOutOfRangeException("Weight must be greater than 0");
-
-            var first = _count == 0;
-            _count += weight;
-
-            if (first) {
-                _oldAvg = value;
-                _newAvg = value;
-                Min = value;
-                Max = value;
-            }
-            else {
-                _newAvg = _oldAvg + (value - _oldAvg) / _count;
-                _oldAvg = _newAvg;
-                Max = value > Max ? value : Max;
-                Min = value < Min ? value : Min;
-            }
-
-            if (_centroids.Count == 0) {
-                _centroids.Add(value, new Centroid(value, weight));
-                return;
-            }
-
-            var closest = GetClosestCentroids(value);
-
-            var candidates = closest
-                .Select(c => new {
-                    Threshold = GetThreshold(ComputeCentroidQuantile(c)),
-                    Centroid = c
-                })
-                .Where(c => c.Centroid.Count + weight < c.Threshold)
-                .ToList();
-
-            while (candidates.Count > 0 & weight > 0) {
-                var cData = candidates[_rand.Next() % candidates.Count];
-                var delta_w = Math.Min(cData.Threshold - cData.Centroid.Count, weight);
-
-                double oldMean;
-                if (cData.Centroid.Update(delta_w, value, out oldMean)) {
-                    ReInsertCentroid(oldMean, cData.Centroid);
-                }
-
-                weight -= delta_w;
-                candidates.Remove(cData);
-            }
-
-            if (weight > 0) {
-                var toAdd = new Centroid(value, weight);
-
-                if (_centroids.FindOrAdd(value, ref toAdd)) {
-                    double oldMean;
-
-                    if (toAdd.Update(weight, toAdd.Mean, out oldMean)) {
-                        ReInsertCentroid(oldMean, toAdd);
-                    }                        
-                }
-            }
-
-            if (_centroids.Count > (CompressionConstant / Accuracy)) {
-                Compress();
-            }
+        if (_centroids.GetOrClosest(value, out var candidateA, out var candidateB))
+        {
+            candidateA.Update(weight, value, true);
+            return;
         }
 
-        /// <summary>
-        /// Estimates the specified quantile
-        /// </summary>
-        /// <param name="quantile">The quantile to estimate. Must be between 0 and 1.</param>
-        /// <returns>The value for the estimated quantile</returns>
-        public double Quantile(double quantile) {
-            if (quantile < 0 || quantile > 1) {
-                throw new ArgumentOutOfRangeException("Quantile must be between 0 and 1");
-            }
+        var (thresholdA, thresholdB) = (0d, 0d);
 
-            if (_centroids.Count == 0) {
-                throw new InvalidOperationException("Cannot call Quantile() method until first Adding values to the digest");
-            }
-
-            if (_centroids.Count == 1)
+        if (candidateA is not null)
+        {
+            if (candidateB is not null)
             {
-                return _centroids.First().Value.Mean;
-            }
+                var aDiff = Math.Abs(candidateA.mean - value);
+                var bDiff = Math.Abs(candidateB.mean - value);
 
-            double index = quantile * _count;
-            if (index < 1)
-            {
-                return Min;
-            }
-            if (index > Count-1)
-            {
-                return Max;
-            }
-
-            Centroid currentNode = _centroids.First().Value;
-            Centroid lastNode = _centroids.Last().Value;
-            double currentWeight = currentNode.Count;
-            if (currentWeight == 2 && index <= 2)
-            {
-                // first node is a double weight with one sample at min, sou we can infer location of other sample
-                return 2 * currentNode.Mean - Min;
-            }
-
-            if (_centroids.Last().Value.Count == 2 && index > Count - 2)
-            {
-                // likewise for last centroid
-                return 2 * lastNode.Mean - Max;
-            }
-
-            double weightSoFar = currentWeight / 2.0;
-
-            if (index < weightSoFar)
-            {
-                return WeightedAvg(Min, weightSoFar - index, currentNode.Mean, index - 1);
-            }
-
-            foreach (Centroid nextNode in _centroids.Values.Skip(1))
-            {
-                double nextWeight = nextNode.Count;
-                double dw = (currentWeight + nextWeight) / 2.0;
-
-                if (index < weightSoFar + dw)
+                if (aDiff < bDiff)
+                    candidateB = null;
+                else if (aDiff > bDiff)
                 {
-                    double leftExclusion = 0;
-                    double rightExclusion = 0;
-                    if (currentWeight == 1)
-                    {
-                        if (index < weightSoFar + 0.5)
-                        {
-                            return currentNode.Mean;
-                        }
-                        else
-                        {
-                            leftExclusion = 0.5;
-                        }
-                    }
-                    if (nextWeight == 1)
-                    {
-                        if (index >= weightSoFar + dw - 0.5)
-                        {
-                            return nextNode.Mean;
-                        }
-                        else
-                        {
-                            rightExclusion = 0.5;
-                        }
-                    }
-                    // centroids i and i+1 bracket our current point
-                    // we interpolate, but the weights are diminished if singletons are present
-                    double weight1 = index - weightSoFar - leftExclusion;
-                    double weight2 = weightSoFar + dw - index - rightExclusion;
-                    return WeightedAvg(currentNode.Mean, weight2, nextNode.Mean, weight1);
+                    candidateA = candidateB;
+                    candidateB = null;
                 }
-
-                weightSoFar += dw;
-                currentNode = nextNode;
-                currentWeight = nextWeight;
+                else
+                    thresholdB = GetThreshold(ComputeCentroidQuantile(candidateB));
             }
 
-            double w1 = index - weightSoFar;
-            double w2 = Count - 1 - index;
-            return WeightedAvg(currentNode.Mean, w2, Max, w1);
+            thresholdA = GetThreshold(ComputeCentroidQuantile(candidateA));
         }
+        else if (candidateB is not null)
+            thresholdB = GetThreshold(ComputeCentroidQuantile(candidateB));
 
-        private double WeightedAvg(double m1, double w1, double m2, double w2)
+        FilterCandidate(ref candidateA, thresholdA, weight);
+        FilterCandidate(ref candidateB, thresholdB, weight);
+
+        if (candidateA is null)
         {
-            double total = w1 + w2;
-            double ret = m1 * w1/total + m2 * w2/total;
-            return ret;
+            candidateA = candidateB;
+            candidateB = null;
+            thresholdA = thresholdB;
         }
 
-        /// <summary>
-        /// Gets the Distribution of the data added thus far
-        /// </summary>
-        /// <returns>An array of objects that contain a value (x-axis) and a count (y-axis) 
-        /// which can be used to plot a distribution of the data set</returns>
-        public DistributionPoint[] GetDistribution() {
-            return _centroids.Values
-                .Select(c => new DistributionPoint(c.Mean, c.Count))
-                .ToArray();
+        if (candidateA is not null)
+        {
+            UpdateCentroid(candidateA, thresholdA, value, ref weight, true);
+
+            if (candidateB is not null && weight > 0)
+                UpdateCentroid(candidateB, thresholdB, value, ref weight, true);
+
+
+            if (weight == 0)
+                return;
         }
 
-        /// <summary>
-        /// Serializes this T-Digest to a byte[]
-        /// </summary>
-        /// <returns></returns>
-        public Byte[] Serialize() {
-            var count = _centroids.Values.Sum(c => c.Count);
+        _centroids.Add(value, weight);
 
-            var fields = new[] { _newAvg, _oldAvg, Accuracy, CompressionConstant, Min, Max }
-                .SelectMany(f => BitConverter.GetBytes(f));
+        if (_centroids.Count > (CompressionConstant / Accuracy))
+            _centroids = CompressCentroidTree();
 
-            var data = _centroids.Values
-                .SelectMany(c => BitConverter.GetBytes(c.Mean).Concat(BitConverter.GetBytes(c.Count)));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        double ComputeCentroidQuantile(Centroid centroid) => (centroid.SumOfLeft() - centroid.weight / 2) / _centroids.Root.subTreeWeight;
+    }
 
-            return fields
-                .Concat(data)
-                .ToArray();
-        }
+    /// <summary>
+    /// Estimates the specified quantile
+    /// </summary>
+    /// <param name="quantile">The quantile to estimate. Must be between 0 and 1.</param>
+    /// <returns>The value for the estimated quantile</returns>
+    public double Quantile(double quantile)
+    {
+        if (quantile < 0 || quantile > 1)
+            throw new ArgumentOutOfRangeException(nameof(quantile), "Quantile must be between 0 and 1");
 
-        private bool Compress() {
-            TDigest newTDigest = new TDigest(Accuracy, CompressionConstant);
-            List<Centroid> temp = _centroids.Values.ToList();
-            temp.Shuffle();
+        if (_centroids.Count == 0)
+            throw new InvalidOperationException("Cannot call Quantile() method until first Adding values to the digest");
 
-            foreach (Centroid centroid in temp) {
-                newTDigest.Add(centroid.Mean, centroid.Count);
+        if (_centroids.Count == 1)
+            return _centroids.Root!.mean;
+
+        var weight = quantile * _centroids.Root!.subTreeWeight;
+
+        var nearest = _centroids.FindByWeight(weight, out var pointA)!;
+        var meanA = nearest.mean;
+
+        if (weight == pointA)
+            return meanA;
+
+        double meanB;
+        double pointB;
+        var pointWeight = nearest.weight;
+
+        if (weight < pointA)
+        {
+            nearest = _centroids.GoLeft(nearest);
+            if (nearest is null)
+            {
+                meanB = Min;
+                pointB = 0;
             }
-
-            _centroids = newTDigest._centroids;
-            return true;
+            else
+            {
+                meanB = nearest.mean;
+                pointB = pointA - (pointWeight + nearest.weight) / 2;
+            }
         }
-
-
-        private double ComputeCentroidQuantile(Centroid centroid) {
-            double sum = 0;
-
-            foreach (Centroid c in _centroids.Values) {
-                if (c.Mean > centroid.Mean) break;
-                sum += c.Count; 
+        else
+        {
+            nearest = _centroids.GoRight(nearest);
+            if (nearest is null)
+            {
+                meanB = Max;
+                pointB = _centroids.Root!.subTreeWeight;
             }
-
-            double denom = _count;
-            return (centroid.Count / 2 + sum) / denom;
-        }
-
-        private IEnumerable<Centroid> GetClosestCentroids(double x) {
-            C5.KeyValuePair<double, Centroid> successor;
-            C5.KeyValuePair<double, Centroid> predecessor;
-
-            if (!_centroids.TryWeakSuccessor(x, out successor)) {
-                yield return _centroids.Predecessor(x).Value;
-                yield break;
-            }
-
-            if (successor.Value.Mean == x || !_centroids.TryPredecessor(x, out predecessor)) {
-                yield return successor.Value;
-                yield break;
-            }
-
-            double sDiff = Math.Abs(successor.Value.Mean - x);
-            double pDiff = Math.Abs(successor.Value.Mean - x);
-
-            if (sDiff < pDiff) yield return successor.Value;
-            else if (pDiff < sDiff) yield return predecessor.Value;
-            else {
-                yield return successor.Value;
-                yield return predecessor.Value;
+            else
+            {
+                meanB = nearest.mean;
+                pointB = pointA + (pointWeight + nearest.weight) / 2;
             }
         }
 
-        private double GetThreshold(double q) {
-            return 4 * _count * Accuracy * q * (1 - q);
+        var distance = Math.Abs(pointA - pointB);
+
+        var result = (meanA * (distance - Math.Abs(weight - pointA)) + meanB * (distance - Math.Abs(weight - pointB))) / distance;
+
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the Distribution of the data added thus far
+    /// </summary>
+    /// <returns>An array of objects that contain a value (x-axis) and a count (y-axis)
+    /// which can be used to plot a distribution of the data set</returns>
+    public IEnumerable<DistributionPoint> GetDistribution() => _centroids
+        .Select(c => new DistributionPoint(c.mean, c.weight));
+
+    /// <summary>
+    /// Multiply T-Digest on factor
+    /// </summary>
+    /// <param name="factor">The factor</param>
+    /// <returns>The same instance of T-Digest</returns>
+    public TDigest MultiplyOn(double factor)
+    {
+        Min *= factor;
+        Max *= factor;
+        _average *= factor;
+        _centroids.Root?.Multiply(factor);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Divide T-Digest on factor
+    /// </summary>
+    /// <param name="factor">The factor</param>
+    /// <returns>The same instance of T-Digest</returns>
+    public TDigest DivideOn(double factor)
+    {
+        Min /= factor;
+        Max /= factor;
+        _average /= factor;
+        _centroids.Root?.Divide(factor);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Shift T-Digest on value
+    /// </summary>
+    /// <param name="value">The value</param>
+    /// <returns>The same instance of T-Digest</returns>
+    public TDigest Shift(double value)
+    {
+        Min += value;
+        Max += value;
+        _average += value;
+        _centroids.Root?.Shift(value);
+
+        return this;
+    }
+
+    public TDigest Clone() => new(this);
+
+    /// <summary>
+    /// Serializes this T-Digest to a byte[]
+    /// </summary>
+    /// <param name="compressed">If true, serialized distribution points will be compressed</param>
+    /// <returns>Serialized bytes array</returns>
+    public byte[] Serialize(bool compressed = true)
+    {
+        var centroids = compressed ? CompressCentroidTree() : _centroids;
+        var length = SERIALIZATION_HEADER_SIZE + SERIALIZATION_ITEM_SIZE * centroids.Count;
+
+        var buffer = new byte[length];
+
+        SerializeInternal(buffer, centroids);
+
+        return buffer;
+    }
+
+    /// <summary>
+    /// Serializes this T-Digest to a Span
+    /// </summary>
+    /// <param name="compressed">If true, serialized distribution points will be compressed</param>
+    /// <returns>Number of bytes written</returns>
+    public int Serialize(Span<byte> target, bool compressed = true)
+    {
+        var centroids = compressed ? CompressCentroidTree() : _centroids;
+        var length = SERIALIZATION_HEADER_SIZE + SERIALIZATION_ITEM_SIZE * centroids.Count;
+
+        if (length > target.Length)
+            throw new ArgumentException("Target buffer has to low capacity for serialization", nameof(target));
+
+        SerializeInternal(target, _centroids);
+
+        return length;
+    }
+
+    /// <summary>
+    /// Creates a TDigest from a serialized string of Bytes created by the Serialize() method
+    /// </summary>
+    /// <param name="serialized"></param>
+    public static TDigest Deserialize(ReadOnlySpan<byte> serialized)
+    {
+        if (serialized == null)
+            throw new ArgumentNullException(nameof(serialized), "Serialized parameter cannot be null");
+
+        if (serialized.Length < SERIALIZATION_HEADER_SIZE ||
+            (serialized.Length - SERIALIZATION_HEADER_SIZE) % SERIALIZATION_ITEM_SIZE != 0)
+            throw new ArgumentException("Serialized data has invalid length");
+
+        var reader = serialized;
+
+        var average = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+        reader = reader[8..];
+
+        var accuracy = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+        reader = reader[8..];
+
+        var compression = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+        reader = reader[8..];
+
+        var min = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+        reader = reader[8..];
+
+        var max = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+        reader = reader[8..];
+
+        var builder = new CentroidTree.SortedBuilder();
+
+        while (!reader.IsEmpty)
+        {
+            var mean = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+            reader = reader[8..];
+
+            var weight = BinaryPrimitives.ReadDoubleLittleEndian(reader);
+            reader = reader[8..];
+
+            builder.Add(new(mean, weight));
         }
 
-        private void ReInsertCentroid(double oldMean, Centroid c) {
-            var ret = _centroids.Remove(oldMean);
-            _centroids.Add(c.Mean, c);
+        return new(builder.Build())
+        {
+            _average = average,
+            Accuracy = accuracy,
+            CompressionConstant = compression,
+            Min = min,
+            Max = max,
+        };
+    }
+
+    /// <summary>
+    /// Merge two T-Digests
+    /// </summary>
+    /// <param name="a">The first T-Digest</param>
+    /// <param name="b">The second T-Digest</param>
+    /// <param name="accuracy">Controls the trade-off between accuracy and memory consumption/performance.
+    /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
+    /// lower values result in better accuracy and increased performance and memory usage</param>
+    /// <param name="compression">K value</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
+    public static TDigest Merge(TDigest a, TDigest b, double accuracy = 0.02, double compression = 25)
+    {
+        var builder = new CentroidTree.SortedBuilder();
+
+        using var enumeratorA = a._centroids.GetEnumerator();
+        using var enumeratorB = b._centroids.GetEnumerator();
+        IEnumerator<Centroid>? finalEnumerator = null;
+
+        Centroid nodeA;
+        Centroid nodeB;
+
+    noValuesYet:
+        if (enumeratorA.MoveNext())
+            nodeA = enumeratorA.Current;
+        else
+        {
+            finalEnumerator = enumeratorB;
+            goto finish;
+        }
+
+        if (enumeratorB.MoveNext())
+            nodeB = enumeratorB.Current;
+        else
+        {
+            builder.Add(Copy(nodeA));
+            finalEnumerator = enumeratorA;
+            goto finish;
+        }
+
+        while (true)
+        {
+            if (nodeA.mean == nodeB.mean)
+            {
+                builder.Add(new(nodeA.mean, nodeA.weight + nodeB.weight));
+                goto noValuesYet;
+            }
+
+            if (nodeA.mean < nodeB.mean)
+            {
+                builder.Add(Copy(nodeA));
+
+                if (enumeratorA.MoveNext())
+                    nodeA = enumeratorA.Current;
+                else
+                {
+                    builder.Add(Copy(nodeB));
+                    finalEnumerator = enumeratorB;
+                    goto finish;
+                }
+            }
+            else
+            {
+                builder.Add(Copy(nodeB));
+
+                if (enumeratorB.MoveNext())
+                    nodeB = enumeratorB.Current;
+                else
+                {
+                    builder.Add(Copy(nodeA));
+                    finalEnumerator = enumeratorA;
+                    goto finish;
+                }
+            }
+        }
+
+    finish:
+        if (finalEnumerator is not null)
+            while (finalEnumerator.MoveNext())
+                builder.Add(Copy(finalEnumerator.Current));
+
+        return new TDigest(builder.Build())
+        {
+            _average = ((a._average * a.Count) + (b._average * b.Count)) / (a.Count + b.Count),
+            Accuracy = accuracy,
+            CompressionConstant = compression,
+            Min = Math.Min(a.Min, b.Min),
+            Max = Math.Max(a.Max, b.Max),
+        };
+
+        static Centroid Copy(Centroid node) => new(node.mean, node.weight);
+    }
+
+    #region Operators
+
+    public static TDigest operator +(TDigest a, TDigest b) => Merge(a, b);
+    public static TDigest operator +(TDigest digest, double value) => digest.Clone().Shift(value);
+    public static TDigest operator -(TDigest digest, double value) => digest.Clone().Shift(-value);
+    public static TDigest operator *(TDigest digest, double factor) => digest.Clone().MultiplyOn(factor);
+    public static TDigest operator /(TDigest digest, double factor) => digest.Clone().DivideOn(factor);
+
+    #endregion
+
+    private void SerializeInternal(Span<byte> target, CentroidTree centroids)
+    {
+        var writeTarget = target;
+
+        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, _average);
+        writeTarget = writeTarget[8..];
+
+        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Accuracy);
+        writeTarget = writeTarget[8..];
+
+        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, CompressionConstant);
+        writeTarget = writeTarget[8..];
+
+        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Min);
+        writeTarget = writeTarget[8..];
+
+        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Max);
+        writeTarget = writeTarget[8..];
+
+        foreach (var centroid in centroids)
+        {
+            BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, centroid.mean);
+            writeTarget = writeTarget[8..];
+
+            BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, centroid.weight);
+            writeTarget = writeTarget[8..];
         }
     }
 
-    internal class Centroid {
-        public double Mean { get; private set; }
-        public double Count { get; private set; }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void UpdateCentroid(Centroid centroid, double threshold, double value, ref double weight, bool withSubTree)
+    {
+        var delta = Math.Min(threshold - centroid.weight, weight);
+        centroid.Update(delta, value, withSubTree);
+        weight -= delta;
+    }
 
-        public Centroid(double mean, double count) {
-            Mean = mean;
-            Count = count;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void FilterCandidate(ref Centroid? candidate, double threshold, double weight)
+    {
+        if (candidate is not null && candidate.weight + weight >= threshold)
+            candidate = null;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private double GetThreshold(double q) => 4 * _centroids.Root!.subTreeWeight * Accuracy * q * (1 - q);
+
+    private CentroidTree CompressCentroidTree()
+    {
+        var builder = new CentroidTree.SortedBuilder();
+
+        using var enumerator = _centroids.GetEnumerator();
+
+        if (enumerator.MoveNext())
+        {
+            var centroid = enumerator.Current;
+            var nearest = new Centroid(centroid.mean, centroid.weight);
+            var sum = centroid.weight;
+            builder.Add(nearest);
+
+            var count = _centroids.Root!.subTreeWeight;
+
+            while (enumerator.MoveNext())
+            {
+                centroid = enumerator.Current;
+                var weight = centroid.weight;
+
+                var candidate = nearest;
+
+                var threshold = GetThreshold((sum - candidate.weight / 2) / count);
+                FilterCandidate(ref candidate, threshold, weight);
+
+                sum += weight;
+
+                if (candidate is not null)
+                {
+                    UpdateCentroid(candidate, threshold, centroid.mean, ref weight, false);
+                    candidate.subTreeWeight = candidate.weight;
+                }
+
+                if (weight > 0)
+                {
+                    nearest = new Centroid(centroid.mean, weight);
+                    builder.Add(nearest);
+                }
+            }
         }
 
-        public bool Update(double delta_w, double value, out double oldMean) {
-            oldMean = Mean;
-            Count += delta_w;
-            Mean += delta_w * (value - Mean) / Count;
-
-            return oldMean != Mean;
-        }
+        return builder.Build();
     }
 }
