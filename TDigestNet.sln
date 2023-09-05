@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet", "TDigestNet\TD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.Tests", "TDigestNet.Tests\TDigestNet.Tests.csproj", "{9CD49D20-6083-46BB-9F89-21CFE81F6A60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.CMD", "TDigestNet.CMD\TDigestNet.CMD.csproj", "{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.Examples", "TDigestNet.Examples\TDigestNet.Examples.csproj", "{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
