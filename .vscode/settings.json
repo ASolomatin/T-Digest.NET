@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
         "Quantile",
-        "Quantiles"
-    ]
+        "Quantiles",
+        "quantumtunneling"
+    ],
+    "dotnet-test-explorer.testProjectPath": "/src/TDigestNet.sln"
 }
