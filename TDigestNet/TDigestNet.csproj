@@ -14,10 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="C5" Version="2.5.3" />
-  </ItemGroup>
-
-  <ItemGroup>
     <InternalsVisibleTo Include="TDigestNet.Tests" />
   </ItemGroup>
 
