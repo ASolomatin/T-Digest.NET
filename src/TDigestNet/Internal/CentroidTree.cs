@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace TDigestNet.Internal;
@@ -27,7 +26,7 @@ internal partial class CentroidTree : IEnumerable<Centroid>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool GetOrClosest(double mean, [NotNullWhen(true)] out Centroid? a, out Centroid? b)
+    public bool GetOrClosest(double mean, out Centroid? a, out Centroid? b)
     {
         var node = _root;
         a = null;
@@ -364,7 +363,11 @@ internal partial class CentroidTree : IEnumerable<Centroid>
         node.parent = leftNode;
     }
 
+#if (NET6_0_OR_GREATER)
     [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
+#else
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
     private static int Log2(int v)
     {
         int r = 0xFFFF - v >> 31 & 0x10;

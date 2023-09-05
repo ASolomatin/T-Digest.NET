@@ -2,6 +2,10 @@
 using System.Runtime.CompilerServices;
 using TDigestNet.Internal;
 
+#if !NET6_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
+
 namespace TDigestNet;
 
 public class TDigest
@@ -118,11 +122,12 @@ public class TDigest
 
         if (_centroids.GetOrClosest(value, out var candidateA, out var candidateB))
         {
-            candidateA.Update(weight, value, true);
+            candidateA!.Update(weight, value, true);
             return;
         }
 
-        var (thresholdA, thresholdB) = (0d, 0d);
+        var thresholdA = 0d;
+        var thresholdB = 0d;
 
         if (candidateA is not null)
         {
@@ -347,30 +352,30 @@ public class TDigest
 
         var reader = serialized;
 
-        var average = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-        reader = reader[8..];
+        var average = Read(reader);
+        reader = reader.Slice(8);
 
-        var accuracy = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-        reader = reader[8..];
+        var accuracy = Read(reader);
+        reader = reader.Slice(8);
 
-        var compression = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-        reader = reader[8..];
+        var compression = Read(reader);
+        reader = reader.Slice(8);
 
-        var min = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-        reader = reader[8..];
+        var min = Read(reader);
+        reader = reader.Slice(8);
 
-        var max = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-        reader = reader[8..];
+        var max = Read(reader);
+        reader = reader.Slice(8);
 
         var builder = new CentroidTree.SortedBuilder();
 
         while (!reader.IsEmpty)
         {
-            var mean = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-            reader = reader[8..];
+            var mean = Read(reader);
+            reader = reader.Slice(8);
 
-            var weight = BinaryPrimitives.ReadDoubleLittleEndian(reader);
-            reader = reader[8..];
+            var weight = Read(reader);
+            reader = reader.Slice(8);
 
             builder.Add(new(mean, weight));
         }
@@ -383,6 +388,18 @@ public class TDigest
             Min = min,
             Max = max,
         };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static double Read(ReadOnlySpan<byte> buffer)
+        {
+#if NET6_0_OR_GREATER
+            return BinaryPrimitives.ReadDoubleLittleEndian(buffer);
+#else
+            return !BitConverter.IsLittleEndian ?
+                BitConverter.Int64BitsToDouble(ReverseBytes(MemoryMarshal.Read<ulong>(buffer))) :
+                MemoryMarshal.Read<double>(buffer);
+#endif
+        }
     }
 
     /// <summary>
@@ -491,28 +508,44 @@ public class TDigest
     {
         var writeTarget = target;
 
-        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, _average);
-        writeTarget = writeTarget[8..];
+        Write(writeTarget, _average);
+        writeTarget = writeTarget.Slice(8);
 
-        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Accuracy);
-        writeTarget = writeTarget[8..];
+        Write(writeTarget, Accuracy);
+        writeTarget = writeTarget.Slice(8);
 
-        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, CompressionConstant);
-        writeTarget = writeTarget[8..];
+        Write(writeTarget, CompressionConstant);
+        writeTarget = writeTarget.Slice(8);
 
-        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Min);
-        writeTarget = writeTarget[8..];
+        Write(writeTarget, Min);
+        writeTarget = writeTarget.Slice(8);
 
-        BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, Max);
-        writeTarget = writeTarget[8..];
+        Write(writeTarget, Max);
+        writeTarget = writeTarget.Slice(8);
 
         foreach (var centroid in centroids)
         {
-            BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, centroid.mean);
-            writeTarget = writeTarget[8..];
+            Write(writeTarget, centroid.mean);
+            writeTarget = writeTarget.Slice(8);
 
-            BinaryPrimitives.WriteDoubleLittleEndian(writeTarget, centroid.weight);
-            writeTarget = writeTarget[8..];
+            Write(writeTarget, centroid.weight);
+            writeTarget = writeTarget.Slice(8);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void Write(Span<byte> buffer, double value)
+        {
+#if NET6_0_OR_GREATER
+            BinaryPrimitives.WriteDoubleLittleEndian(buffer, value);
+#else
+            if (!BitConverter.IsLittleEndian)
+            {
+                var tmp = ReverseBytes((ulong)BitConverter.DoubleToInt64Bits(value));
+                MemoryMarshal.Write(buffer, ref tmp);
+            }
+            else
+                MemoryMarshal.Write(buffer, ref value);
+#endif
         }
     }
 
@@ -577,4 +610,18 @@ public class TDigest
 
         return builder.Build();
     }
+
+#if !NET6_0_OR_GREATER
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long ReverseBytes(ulong v) => (long)(
+        (v & 0x00000000000000FFul) << (8 * 7) |
+        (v & 0x000000000000FF00ul) << (8 * 5) |
+        (v & 0x0000000000FF0000ul) << (8 * 3) |
+        (v & 0x00000000FF000000ul) << (8 * 1) |
+        (v & 0x000000FF00000000ul) >> (8 * 1) |
+        (v & 0x0000FF0000000000ul) >> (8 * 3) |
+        (v & 0x00FF000000000000ul) >> (8 * 5) |
+        (v & 0xFF00000000000000ul) >> (8 * 7)
+    );
+#endif
 }

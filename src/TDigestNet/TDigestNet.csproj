@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFrameworks>netstandard2.1;net6.0;net7.0;net461;net481</TargetFrameworks>
+    <LangVersion>10.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -12,6 +13,11 @@
     <AssemblyProduct>TDigest</AssemblyProduct>
     <AssemblyCopyright>Copyright ©  2019</AssemblyCopyright>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net461' Or '$(TargetFramework)' == 'net481'">
+    <Using Remove="System.Net.Http" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="TDigestNet.Tests" />
