@@ -9,9 +9,9 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/TDigest.CMD/bin/Debug/net7.0/TDigest.CMD.dll",
+            "program": "${workspaceFolder}/TDigestNet.CMD/bin/Debug/net7.0/TDigestNet.CMD.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/TDigest.CMD",
+            "cwd": "${workspaceFolder}/TDigestNet.CMD",
             "console": "internalConsole",
             "stopAtEntry": false
         },
