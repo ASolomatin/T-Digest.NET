@@ -17,8 +17,8 @@ public class TestSerialization : TestBase
 
         byte[] sN = _digestA.Serialize(false);
         byte[] sC = _digestA.Serialize();
-        _digestB = TDigestNet.Deserialize(sN);
-        _digestC = TDigestNet.Deserialize(sC);
+        _digestB = TDigest.Deserialize(sN);
+        _digestC = TDigest.Deserialize(sC);
     }
 
     [Test, Order(0)]
