@@ -1,0 +1,44 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  tests:
+
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        framework: [netcoreapp3.1, net6.0, net461]
+        exclude:
+          - os: macos-latest
+            framework: net461
+          - os: ubuntu-latest
+            framework: net461
+        include:
+          - sln: src/TDigestNet.sln
+          - os: windows-latest
+            sln: src\TDigestNet.sln
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET 3.1
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 3.1.x
+    - name: Setup .NET 6.0
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ matrix.sln }}
+    - name: Build with dotnet
+      run: dotnet build ${{ matrix.sln }} --configuration Release --no-restore
+    - name: Run unit tests
+      run: dotnet test ${{ matrix.sln }} --configuration Release --no-build --verbosity normal -f ${{ matrix.framework }}
