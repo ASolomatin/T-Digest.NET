@@ -8,6 +8,9 @@ using System.Runtime.InteropServices;
 
 namespace TDigestNet;
 
+/// <summary>
+/// Implementation of the T-Digest quantile estimation algorithm.
+/// </summary>
 public class TDigest
 {
     private const int SERIALIZATION_HEADER_SIZE = 8 * 5;
@@ -300,6 +303,10 @@ public class TDigest
         return this;
     }
 
+    /// <summary>
+    /// Create copy of current T-Digest instance
+    /// </summary>
+    /// <returns>New T-Digest instance</returns>
     public TDigest Clone() => new(this);
 
     /// <summary>
@@ -322,6 +329,7 @@ public class TDigest
     /// <summary>
     /// Serializes this T-Digest to a Span
     /// </summary>
+    /// <param name="target">The target Span for serialization</param>
     /// <param name="compressed">If true, serialized distribution points will be compressed</param>
     /// <returns>Number of bytes written</returns>
     public int Serialize(Span<byte> target, bool compressed = true)
@@ -496,10 +504,44 @@ public class TDigest
 
     #region Operators
 
+    /// <summary>
+    /// Merge two T-Digests
+    /// </summary>
+    /// <param name="a">The first T-Digest</param>
+    /// <param name="b">The second T-Digest</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
     public static TDigest operator +(TDigest a, TDigest b) => Merge(a, b);
+
+    /// <summary>
+    /// Shift the copy T-Digest on value
+    /// </summary>
+    /// <param name="digest">The T-Digest</param>
+    /// <param name="value">The value</param>
+    /// <returns>New instance of the T-Digest</returns>
     public static TDigest operator +(TDigest digest, double value) => digest.Clone().Shift(value);
+
+    /// <summary>
+    /// Shift the copy T-Digest on negative value
+    /// </summary>
+    /// <param name="digest">The T-Digest</param>
+    /// <param name="value">The value</param>
+    /// <returns>New instance of the T-Digest</returns>
     public static TDigest operator -(TDigest digest, double value) => digest.Clone().Shift(-value);
+
+    /// <summary>
+    /// Multiply T-Digest on factor
+    /// </summary>
+    /// <param name="digest">The T-Digest</param>
+    /// <param name="factor">The factor</param>
+    /// <returns>New instance of the T-Digest</returns>
     public static TDigest operator *(TDigest digest, double factor) => digest.Clone().MultiplyOn(factor);
+
+    /// <summary>
+    /// Divide T-Digest on factor
+    /// </summary>
+    /// <param name="digest">The T-Digest</param>
+    /// <param name="factor">The factor</param>
+    /// <returns>New instance of the T-Digest</returns>
     public static TDigest operator /(TDigest digest, double factor) => digest.Clone().DivideOn(factor);
 
     #endregion
