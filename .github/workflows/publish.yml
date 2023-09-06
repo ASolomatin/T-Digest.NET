@@ -33,12 +33,6 @@ jobs:
         ls */*.pdb | xargs -I _FILE_ bash -c "cp _FILE_ \$(echo _FILE_ | sed 's/\//_/g')"
         ls */*.xml | xargs -I _FILE_ bash -c "cp _FILE_ \$(echo _FILE_ | sed 's/\//_/g')"
 
-    - name: nuget push
-      run: dotnet nuget push "${NUPKG_PATH}" --api-key "${NUGET_KEY}" --source https://api.nuget.org/v3/index.json
-      env:
-        NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
-        NUPKG_PATH: ${{ env.ARTIFACT_NUPKG_PATHNAME }}
-
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
@@ -49,3 +43,9 @@ jobs:
             src/TDigestNet/bin/Release/*.xml
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: nuget push
+      run: dotnet nuget push "${NUPKG_PATH}" --api-key "${NUGET_KEY}" --source https://api.nuget.org/v3/index.json
+      env:
+        NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
+        NUPKG_PATH: ${{ env.ARTIFACT_NUPKG_PATHNAME }}
