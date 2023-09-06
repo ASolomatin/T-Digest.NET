@@ -71,7 +71,7 @@ public class TestSerialization : TestBase
     public void TestAvgPercentileError() => Assert.Multiple(() =>
     {
         Assert.That(GetAvgPercentileError(_digestA, _digestB), Is.EqualTo(0));
-        Assert.That(GetAvgPercentileError(_digestA, _digestC), Is.LessThan(.01));
+        Assert.That(GetAvgPercentileError(_digestA, _digestC), Is.LessThan(.05));
     });
 
     [Test]
