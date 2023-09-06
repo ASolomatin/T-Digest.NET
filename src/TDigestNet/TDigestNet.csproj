@@ -5,18 +5,39 @@
     <LangVersion>10.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup>
-    <AssemblyTitle>TDigest</AssemblyTitle>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/ASolomatin/T-Digest.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ASolomatin/T-Digest.NET</PackageProjectUrl>
+    <PackageTags>t-digest, tdigest, digest, percentile, quantile</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageId>T-Digest.NET</PackageId>
+    <Description>
+      .NET Implementation of the relatively new T-Digest quantile estimation algorithm.
+      Useful for calculating highly accurate Quantiles or Percentiles from on-line streaming data,
+      or data-sets that are too large to store in memory and sort, which is required to calculate the true quantile.
+    </Description>
+    <Authors>Aleksej Solomatin</Authors>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyTitle>T-Digest</AssemblyTitle>
     <AssemblyDescription>Streaming Percentile Estimation</AssemblyDescription>
     <AssemblyProduct>TDigest</AssemblyProduct>
-    <AssemblyCopyright>Copyright ©  2019</AssemblyCopyright>
+    <AssemblyCopyright>Copyright Aleksej Solomatin © 2023</AssemblyCopyright>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
     <Using Remove="System.Net.Http" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath=""/>
   </ItemGroup>
 
   <ItemGroup>

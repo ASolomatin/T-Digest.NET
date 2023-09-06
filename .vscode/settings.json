@@ -2,9 +2,11 @@
     "cSpell.words": [
         "Aleksej",
         "netcoreapp",
+        "NUPKG",
         "Quantile",
         "Quantiles",
         "quantumtunneling",
+        "softprops",
         "Solomatin"
     ],
     "dotnet-test-explorer.testProjectPath": "/src/TDigestNet.sln"
