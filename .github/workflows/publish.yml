@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Publish on any new tag starting with v
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
