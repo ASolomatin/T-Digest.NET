@@ -8,10 +8,8 @@ using System.Runtime.InteropServices;
 
 namespace TDigestNet;
 
-/// <summary>
-/// Implementation of the T-Digest quantile estimation algorithm.
-/// </summary>
-public class TDigest
+/// <inheritdoc />
+public class TDigest : ITDigest
 {
     private const int SERIALIZATION_HEADER_SIZE = 8 * 5;
     private const int SERIALIZATION_ITEM_SIZE = 8 * 2;
@@ -23,50 +21,28 @@ public class TDigest
     private CentroidTree _centroids;
     private double _average;
 
-    /// <summary>
-    /// Returns the sum of the weights of all objects added to the Digest.
-    /// Since the default weight for each object is 1, this will be equal to the number
-    /// of objects added to the digest unless custom weights are used.
-    /// </summary>
+    /// <inheritdoc />
     public double Count => _centroids.Root?.subTreeWeight ?? 0;
 
-    /// <summary>
-    /// Returns the number of Internal Centroid objects allocated.
-    /// The number of these objects is directly proportional to the amount of memory used.
-    /// </summary>
+    /// <inheritdoc />
     public int CentroidCount => _centroids.Count;
 
-    /// <summary>
-    /// Gets the Accuracy setting as specified in the constructor.
-    /// Smaller numbers result in greater accuracy at the expense of
-    /// poorer performance and greater memory consumption
-    /// Default is .02
-    /// </summary>
+    /// <inheritdoc />
     public double Accuracy { get; private set; }
 
-    /// <summary>
-    /// The Compression Constant Setting
-    /// </summary>
+    /// <inheritdoc />
     public double CompressionConstant { get; private set; }
 
-    /// <summary>
-    /// The Average
-    /// </summary>
+    /// <inheritdoc />
     public double Average => _average;
 
-    /// <summary>
-    /// The Min
-    /// </summary>
+    /// <inheritdoc />
     public double Min { get; private set; }
 
-    /// <summary>
-    /// The Max
-    /// </summary>
+    /// <inheritdoc />
     public double Max { get; private set; }
 
-    /// <summary>
-    /// The expected size in bytes after serialization
-    /// </summary>
+    /// <inheritdoc />
     public int ExpectedSerializedBytesLength => SERIALIZATION_HEADER_SIZE + SERIALIZATION_ITEM_SIZE * _centroids.Count;
 
     internal CentroidTree InternalTree => _centroids;
@@ -100,11 +76,7 @@ public class TDigest
 
     private TDigest(CentroidTree centroids) => _centroids = centroids;
 
-    /// <summary>
-    /// Add a new value to the T-Digest. Note that this method is NOT thread safe.
-    /// </summary>
-    /// <param name="value">The value to add</param>
-    /// <param name="weight">The relative weight associated with this value. Default is 1 for all values.</param>
+    /// <inheritdoc />
     public void Add(double value, double weight = 1)
     {
         if (weight <= 0)
@@ -189,11 +161,7 @@ public class TDigest
         double ComputeCentroidQuantile(Centroid centroid) => (centroid.SumOfLeft() - centroid.weight / 2) / _centroids.Root.subTreeWeight;
     }
 
-    /// <summary>
-    /// Estimates the specified quantile
-    /// </summary>
-    /// <param name="quantile">The quantile to estimate. Must be between 0 and 1.</param>
-    /// <returns>The value for the estimated quantile</returns>
+    /// <inheritdoc />
     public double Quantile(double quantile)
     {
         if (quantile < 0 || quantile > 1)
@@ -253,19 +221,11 @@ public class TDigest
         return result;
     }
 
-    /// <summary>
-    /// Gets the Distribution of the data added thus far
-    /// </summary>
-    /// <returns>An array of objects that contain a value (x-axis) and a count (y-axis)
-    /// which can be used to plot a distribution of the data set</returns>
+    /// <inheritdoc />
     public IEnumerable<DistributionPoint> GetDistribution() => _centroids
         .Select(c => new DistributionPoint(c.mean, c.weight));
 
-    /// <summary>
-    /// Multiply T-Digest on factor
-    /// </summary>
-    /// <param name="factor">The factor</param>
-    /// <returns>The same instance of T-Digest</returns>
+    /// <inheritdoc />
     public TDigest MultiplyOn(double factor)
     {
         Min *= factor;
@@ -276,11 +236,7 @@ public class TDigest
         return this;
     }
 
-    /// <summary>
-    /// Divide T-Digest on factor
-    /// </summary>
-    /// <param name="factor">The factor</param>
-    /// <returns>The same instance of T-Digest</returns>
+    /// <inheritdoc />
     public TDigest DivideOn(double factor)
     {
         Min /= factor;
@@ -291,11 +247,7 @@ public class TDigest
         return this;
     }
 
-    /// <summary>
-    /// Shift T-Digest on value
-    /// </summary>
-    /// <param name="value">The value</param>
-    /// <returns>The same instance of T-Digest</returns>
+    /// <inheritdoc />
     public TDigest Shift(double value)
     {
         Min += value;
@@ -306,17 +258,10 @@ public class TDigest
         return this;
     }
 
-    /// <summary>
-    /// Create copy of current T-Digest instance
-    /// </summary>
-    /// <returns>New T-Digest instance</returns>
+    /// <inheritdoc />
     public TDigest Clone() => new(this);
 
-    /// <summary>
-    /// Serializes this T-Digest to a byte[]
-    /// </summary>
-    /// <param name="compressed">If true, serialized distribution points will be compressed</param>
-    /// <returns>Serialized bytes array</returns>
+    /// <inheritdoc />
     public byte[] Serialize(bool compressed = true)
     {
         var centroids = compressed ? CompressCentroidTree() : _centroids;
@@ -329,12 +274,7 @@ public class TDigest
         return buffer;
     }
 
-    /// <summary>
-    /// Serializes this T-Digest to a Span
-    /// </summary>
-    /// <param name="target">The target Span for serialization</param>
-    /// <param name="compressed">If true, serialized distribution points will be compressed</param>
-    /// <returns>Number of bytes written</returns>
+    /// <inheritdoc />
     public int Serialize(Span<byte> target, bool compressed = true)
     {
         var centroids = compressed ? CompressCentroidTree() : _centroids;
@@ -596,7 +536,7 @@ public class TDigest
                         }
                     }
 
-                    if(weight == minimum.weight)
+                    if (weight == minimum.weight)
                         yield return minimum;
                     else
                         yield return new(minimum.mean, weight);
