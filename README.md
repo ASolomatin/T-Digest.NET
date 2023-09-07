@@ -8,13 +8,15 @@
 [license-url]:          https://github.com/ASolomatin/T-Digest.NET/blob/master/LICENSE
 
 [nuget-icon]:           https://img.shields.io/nuget/v/T-Digest.NET.svg
-[nuget-downloads-icon]: https://img.shields.io/nuget/dt/T-Digest.NET.svg
 [nuget-url]:            https://www.nuget.org/packages/T-Digest.NET
+
+[nuget-downloads-icon]: https://img.shields.io/nuget/dt/T-Digest.NET.svg
+[nuget-downloads-url]: https://www.nuget.org/stats/packages/T-Digest.NET?groupby=Version
 
 # T-Digest.NET
 
 [![NuGet][nuget-icon]][nuget-url]
-[![NuGet downloads][nuget-downloads-icon]][nuget-url]
+[![NuGet downloads][nuget-downloads-icon]][nuget-downloads-url]
 [![Tests][test-icon]][test-url]
 [![Publish][packaging-icon]][packaging-url]
 [![GitHub][license-icon]][license-url]

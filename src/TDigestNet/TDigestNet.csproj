@@ -13,6 +13,7 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/ASolomatin/T-Digest.NET</RepositoryUrl>
     <PackageProjectUrl>https://github.com/ASolomatin/T-Digest.NET</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>t-digest, tdigest, digest, percentile, quantile</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageId>T-Digest.NET</PackageId>
@@ -37,7 +38,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath=""/>
+    <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+    <None Include="../../README.md" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
   <ItemGroup>
