@@ -1,4 +1,5 @@
-﻿using System.Buffers.Binary;
+﻿using System;
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using TDigestNet.Internal;
 
@@ -15,6 +16,9 @@ public class TDigest
 {
     private const int SERIALIZATION_HEADER_SIZE = 8 * 5;
     private const int SERIALIZATION_ITEM_SIZE = 8 * 2;
+
+    private const double DEFAULT_ACCURACY = .02;
+    private const double DEFAULT_COMPRESSION = 25;
 
 
     private CentroidTree _centroids;
@@ -75,7 +79,7 @@ public class TDigest
     /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
     /// lower values result in better accuracy and increased performance and memory usage</param>
     /// <param name="compression">K value</param>
-    public TDigest(double accuracy = 0.02, double compression = 25)
+    public TDigest(double accuracy = DEFAULT_ACCURACY, double compression = DEFAULT_COMPRESSION)
         : this(new CentroidTree())
     {
         if (accuracy <= 0) throw new ArgumentOutOfRangeException(nameof(accuracy), "Accuracy must be greater than 0");
@@ -420,86 +424,88 @@ public class TDigest
     /// lower values result in better accuracy and increased performance and memory usage</param>
     /// <param name="compression">K value</param>
     /// <returns>A T-Digest created by merging the specified T-Digests</returns>
-    public static TDigest Merge(TDigest a, TDigest b, double accuracy = 0.02, double compression = 25)
+    public static TDigest Merge(TDigest a, TDigest b, double accuracy = DEFAULT_ACCURACY, double compression = DEFAULT_COMPRESSION)
     {
-        var builder = new CentroidTree.SortedBuilder();
+        var count = a.Count + b.Count;
+        var tree = CompressCentroidTree(Enumerate(), count, accuracy);
 
-        using var enumeratorA = a._centroids.GetEnumerator();
-        using var enumeratorB = b._centroids.GetEnumerator();
-        IEnumerator<Centroid>? finalEnumerator = null;
-
-        Centroid nodeA;
-        Centroid nodeB;
-
-    noValuesYet:
-        if (enumeratorA.MoveNext())
-            nodeA = enumeratorA.Current;
-        else
+        return new TDigest(tree)
         {
-            finalEnumerator = enumeratorB;
-            goto finish;
-        }
-
-        if (enumeratorB.MoveNext())
-            nodeB = enumeratorB.Current;
-        else
-        {
-            builder.Add(Copy(nodeA));
-            finalEnumerator = enumeratorA;
-            goto finish;
-        }
-
-        while (true)
-        {
-            if (nodeA.mean == nodeB.mean)
-            {
-                builder.Add(new(nodeA.mean, nodeA.weight + nodeB.weight));
-                goto noValuesYet;
-            }
-
-            if (nodeA.mean < nodeB.mean)
-            {
-                builder.Add(Copy(nodeA));
-
-                if (enumeratorA.MoveNext())
-                    nodeA = enumeratorA.Current;
-                else
-                {
-                    builder.Add(Copy(nodeB));
-                    finalEnumerator = enumeratorB;
-                    goto finish;
-                }
-            }
-            else
-            {
-                builder.Add(Copy(nodeB));
-
-                if (enumeratorB.MoveNext())
-                    nodeB = enumeratorB.Current;
-                else
-                {
-                    builder.Add(Copy(nodeA));
-                    finalEnumerator = enumeratorA;
-                    goto finish;
-                }
-            }
-        }
-
-    finish:
-        if (finalEnumerator is not null)
-            while (finalEnumerator.MoveNext())
-                builder.Add(Copy(finalEnumerator.Current));
-
-        return new TDigest(builder.Build())
-        {
-            _average = ((a._average * a.Count) + (b._average * b.Count)) / (a.Count + b.Count),
+            _average = ((a._average * a.Count) + (b._average * b.Count)) / count,
             Accuracy = accuracy,
             CompressionConstant = compression,
             Min = Math.Min(a.Min, b.Min),
             Max = Math.Max(a.Max, b.Max),
         };
 
-        static Centroid Copy(Centroid node) => new(node.mean, node.weight);
+        IEnumerable<Centroid> Enumerate()
+        {
+            using var enumeratorA = a._centroids.GetEnumerator();
+            using var enumeratorB = b._centroids.GetEnumerator();
+            IEnumerator<Centroid>? finalEnumerator = null;
+
+            Centroid nodeA;
+            Centroid nodeB;
+
+        noValuesYet:
+            if (enumeratorA.MoveNext())
+                nodeA = enumeratorA.Current;
+            else
+            {
+                finalEnumerator = enumeratorB;
+                goto finish;
+            }
+
+            if (enumeratorB.MoveNext())
+                nodeB = enumeratorB.Current;
+            else
+            {
+                yield return nodeA;
+                finalEnumerator = enumeratorA;
+                goto finish;
+            }
+
+            while (true)
+            {
+                if (nodeA.mean == nodeB.mean)
+                {
+                    yield return new(nodeA.mean, nodeA.weight + nodeB.weight);
+                    goto noValuesYet;
+                }
+
+                if (nodeA.mean < nodeB.mean)
+                {
+                    yield return nodeA;
+
+                    if (enumeratorA.MoveNext())
+                        nodeA = enumeratorA.Current;
+                    else
+                    {
+                        yield return nodeB;
+                        finalEnumerator = enumeratorB;
+                        goto finish;
+                    }
+                }
+                else
+                {
+                    yield return nodeB;
+
+                    if (enumeratorB.MoveNext())
+                        nodeB = enumeratorB.Current;
+                    else
+                    {
+                        yield return nodeA;
+                        finalEnumerator = enumeratorA;
+                        goto finish;
+                    }
+                }
+            }
+
+        finish:
+            if (finalEnumerator is not null)
+                while (finalEnumerator.MoveNext())
+                    yield return finalEnumerator.Current;
+        }
     }
 
     #region Operators
@@ -607,13 +613,19 @@ public class TDigest
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private double GetThreshold(double q) => 4 * _centroids.Root!.subTreeWeight * Accuracy * q * (1 - q);
+    private double GetThreshold(double q) => GetThreshold(q, _centroids.Root!.subTreeWeight, Accuracy);
 
-    private CentroidTree CompressCentroidTree()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static double GetThreshold(double q, double count, double accuracy) => 4 * count * accuracy * q * (1 - q);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private CentroidTree CompressCentroidTree() => CompressCentroidTree(_centroids, _centroids.Root!.subTreeWeight, Accuracy);
+
+    private static CentroidTree CompressCentroidTree(IEnumerable<Centroid> centroids, double count, double accuracy)
     {
         var builder = new CentroidTree.SortedBuilder();
 
-        using var enumerator = _centroids.GetEnumerator();
+        using var enumerator = centroids.GetEnumerator();
 
         if (enumerator.MoveNext())
         {
@@ -622,8 +634,6 @@ public class TDigest
             var sum = centroid.weight;
             builder.Add(nearest);
 
-            var count = _centroids.Root!.subTreeWeight;
-
             while (enumerator.MoveNext())
             {
                 centroid = enumerator.Current;
@@ -631,7 +641,7 @@ public class TDigest
 
                 var candidate = nearest;
 
-                var threshold = GetThreshold((sum - candidate.weight / 2) / count);
+                var threshold = GetThreshold((sum - candidate.weight / 2) / count, count, accuracy);
                 FilterCandidate(ref candidate, threshold, weight);
 
                 sum += weight;
