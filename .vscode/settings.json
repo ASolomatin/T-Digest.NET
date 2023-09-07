@@ -10,5 +10,6 @@
         "Solomatin"
     ],
     "dotnet-test-explorer.testProjectPath": "/src/TDigestNet.sln",
-    "vssolution.openSolutions.inFoldersAndSubfolders": true
+    "vssolution.openSolutions.inFoldersAndSubfolders": true,
+    "dotnet.defaultSolution": "src/TDigestNet.sln"
 }
