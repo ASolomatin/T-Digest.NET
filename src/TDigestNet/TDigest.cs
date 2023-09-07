@@ -508,6 +508,132 @@ public class TDigest
         }
     }
 
+    /// <summary>
+    /// Merge multiple T-Digests with default accuracy and compression settings
+    /// </summary>
+    /// <param name="digests">T-Digests</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
+    public static TDigest MergeMultiple(params TDigest[] digests) => MergeMultiple(DEFAULT_ACCURACY, DEFAULT_COMPRESSION, digests as IEnumerable<TDigest>);
+
+    /// <summary>
+    /// Merge multiple T-Digests
+    /// </summary>
+    /// <param name="accuracy">Controls the trade-off between accuracy and memory consumption/performance.
+    /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
+    /// lower values result in better accuracy and increased performance and memory usage</param>
+    /// <param name="compression">K value</param>
+    /// <param name="digests">T-Digests</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
+    public static TDigest MergeMultiple(double accuracy, double compression, params TDigest[] digests) => MergeMultiple(accuracy, compression, digests as IEnumerable<TDigest>);
+
+    /// <summary>
+    /// Merge multiple T-Digests with default accuracy and compression settings
+    /// </summary>
+    /// <param name="digests">T-Digests</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
+    public static TDigest MergeMultiple(IEnumerable<TDigest> digests) => MergeMultiple(DEFAULT_ACCURACY, DEFAULT_COMPRESSION, digests);
+
+    /// <summary>
+    /// Merge multiple T-Digests
+    /// </summary>
+    /// <param name="accuracy">Controls the trade-off between accuracy and memory consumption/performance.
+    /// Default value is .05, higher values result in worse accuracy, but better performance and decreased memory usage, while
+    /// lower values result in better accuracy and increased performance and memory usage</param>
+    /// <param name="compression">K value</param>
+    /// <param name="digests">T-Digests</param>
+    /// <returns>A T-Digest created by merging the specified T-Digests</returns>
+    public static TDigest MergeMultiple(double accuracy, double compression, IEnumerable<TDigest> digests)
+    {
+        var count = digests.Sum(d => d.Count);
+        var tree = CompressCentroidTree(Enumerate(), count, accuracy);
+
+        var digest = new TDigest(tree)
+        {
+            _average = digests.Sum(d => d._average * d.Count) / count,
+            Accuracy = accuracy,
+            CompressionConstant = compression,
+            Min = digests.Min(d => d.Min),
+            Max = digests.Max(d => d.Max),
+        };
+
+        if (digest._centroids.Count > (digest.CompressionConstant / digest.Accuracy))
+            digest._centroids = digest.CompressCentroidTree();
+
+        return digest;
+
+        IEnumerable<Centroid> Enumerate()
+        {
+            var enumerators = digests.Select(d => (IEnumerator<Centroid>?)d._centroids.GetEnumerator()).ToArray();
+            var enumeratorsCount = enumerators.Length;
+            var enumeratorsLost = enumeratorsCount;
+            var centroids = new Centroid?[enumeratorsCount];
+            try
+            {
+                for (int i = 0; i < enumeratorsCount;)
+                    if (LoadValue(i))
+                        i++;
+
+                while (enumeratorsLost != 0)
+                {
+                    Centroid? minimum = null;
+                    for (int i = 0; i < enumeratorsCount; i++)
+                    {
+                        var current = centroids[i];
+                        if (current is not null && (minimum is null || current.mean < minimum.mean))
+                            minimum = current;
+                    }
+
+                    if (minimum is null)
+                        throw new ApplicationException("Centroid is null but this was not expected");
+
+                    var weight = .0;
+                    for (int i = 0; i < enumeratorsCount; i++)
+                    {
+                        var current = centroids[i];
+                        if (current is not null && minimum.mean == current.mean)
+                        {
+                            weight += current.weight;
+                            LoadValue(i);
+                        }
+                    }
+
+                    if(weight == minimum.weight)
+                        yield return minimum;
+                    else
+                        yield return new(minimum.mean, weight);
+                }
+            }
+            finally
+            {
+                foreach (var enumerator in enumerators)
+                    enumerator?.Dispose();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            bool LoadValue(int i)
+            {
+                var enumerator = enumerators[i];
+
+                if (enumerator is null)
+                    throw new ApplicationException("Enumerator is null but this was not expected");
+
+                if (enumerator.MoveNext())
+                    centroids[i] = enumerator.Current;
+                else
+                {
+                    enumerator.Dispose();
+                    enumerators[i] = null;
+                    centroids[i] = null;
+                    enumeratorsLost--;
+
+                    return false;
+                }
+
+                return true;
+            }
+        }
+    }
+
     #region Operators
 
     /// <summary>
