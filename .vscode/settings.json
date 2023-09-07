@@ -9,5 +9,6 @@
         "softprops",
         "Solomatin"
     ],
-    "dotnet-test-explorer.testProjectPath": "/src/TDigestNet.sln"
+    "dotnet-test-explorer.testProjectPath": "/src/TDigestNet.sln",
+    "vssolution.openSolutions.inFoldersAndSubfolders": true
 }

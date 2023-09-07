@@ -11,7 +11,7 @@
 [nuget-url]:            https://www.nuget.org/packages/T-Digest.NET
 
 [nuget-downloads-icon]: https://img.shields.io/nuget/dt/T-Digest.NET.svg
-[nuget-downloads-url]: https://www.nuget.org/stats/packages/T-Digest.NET?groupby=Version
+[nuget-downloads-url]:  https://www.nuget.org/stats/packages/T-Digest.NET?groupby=Version
 
 # T-Digest.NET
 

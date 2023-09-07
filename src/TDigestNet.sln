@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet", "TDigestNet\TD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.Tests", "TDigestNet.Tests\TDigestNet.Tests.csproj", "{9CD49D20-6083-46BB-9F89-21CFE81F6A60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TDigestNet.Examples", "TDigestNet.Examples\TDigestNet.Examples.csproj", "{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +24,5 @@ Global
 		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9CD49D20-6083-46BB-9F89-21CFE81F6A60}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FCD836FA-BA35-4FC0-AFCC-C39EC09880E2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
