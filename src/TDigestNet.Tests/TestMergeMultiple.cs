@@ -8,6 +8,7 @@ public class TestMergeMultiple : TestBase
     private readonly TDigest _digestB = new();
     private readonly TDigest _digestC = new();
     private readonly TDigest _digestD = new();
+    private readonly TDigest _digestEmpty = new();
     private readonly TDigest _merged;
 
     public TestMergeMultiple()
@@ -42,7 +43,7 @@ public class TestMergeMultiple : TestBase
 
         _actual.Sort();
 
-        _merged = TDigest.MergeMultiple(_digestA,  _digestB, _digestC, _digestD);
+        _merged = TDigest.MergeMultiple(_digestA,  _digestB, _digestEmpty, _digestC, _digestD);
     }
 
     [Test, Order(0)]

@@ -508,9 +508,8 @@ public class TDigest : ITDigest
             var centroids = new Centroid?[enumeratorsCount];
             try
             {
-                for (int i = 0; i < enumeratorsCount;)
-                    if (LoadValue(i))
-                        i++;
+                for (int i = 0; i < enumeratorsCount; i++)
+                    LoadValue(i);
 
                 while (enumeratorsLost != 0)
                 {
@@ -549,7 +548,7 @@ public class TDigest : ITDigest
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            bool LoadValue(int i)
+            void LoadValue(int i)
             {
                 var enumerator = enumerators[i];
 
@@ -564,11 +563,7 @@ public class TDigest : ITDigest
                     enumerators[i] = null;
                     centroids[i] = null;
                     enumeratorsLost--;
-
-                    return false;
                 }
-
-                return true;
             }
         }
     }
